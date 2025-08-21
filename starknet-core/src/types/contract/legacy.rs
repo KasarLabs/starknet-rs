@@ -14,7 +14,9 @@ use crate::{
 };
 
 use serde::{
-    de::Error as DeError, ser::SerializeSeq, Deserialize, Deserializer, Serialize, Serializer,
+    de::{DeserializeOwned, Error as DeError},
+    ser::SerializeSeq,
+    Deserialize, Deserializer, Serialize, Serializer,
 };
 use serde_json_pythonic::to_string_pythonic;
 use serde_with::{serde_as, SerializeAs};
@@ -31,11 +33,23 @@ const API_VERSION: Felt = Felt::ZERO;
 #[cfg_attr(feature = "no_unknown_fields", serde(deny_unknown_fields))]
 pub struct LegacyContractClass {
     /// Contract ABI.
+    #[serde(default, deserialize_with = "deserialize_optional_field")]
     pub abi: Vec<RawLegacyAbiEntry>,
     /// Contract entrypoints.
     pub entry_points_by_type: RawLegacyEntryPoints,
     /// The Cairo program of the contract containing the actual bytecode.
     pub program: LegacyProgram,
+}
+
+fn deserialize_optional_field<'de, D, T>(deserializer: D) -> Result<T, D::Error>
+where
+    D: Deserializer<'de>,
+    T: DeserializeOwned + Default,
+{
+    match Option::<T>::deserialize(deserializer)? {
+        Some(value) => Ok(value),
+        None => Ok(T::default()),
+    }
 }
 
 /// Legacy (Cairo 0) contract entrypoints by types.
